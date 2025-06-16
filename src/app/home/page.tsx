@@ -3,50 +3,118 @@
 import { useState, useEffect } from "react"
 
 interface Game {
-  id: number
+  id: string
   name: string
   price?: string
   originalPrice?: string
   discount?: string
 }
 
+interface UserData {
+  username: string
+  num_games_owned: number
+  games: string[]
+}
+
 export default function HomePage() {
   const [username, setUsername] = useState<string>("")
+  const [userData, setUserData] = useState<UserData | null>(null)
+  const [ownedGames, setOwnedGames] = useState<Game[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string>("")
+
+  // Mock data for recommended games (this could also come from an API)
+  const recommendedGames: Game[] = [
+    { id: "413150", name: "Stardew Valley", price: "$14.99", originalPrice: "$14.99" },
+    { id: "1091500", name: "Cyberpunk 2077", price: "$29.99", originalPrice: "$59.99", discount: "-50%" },
+    { id: "292030", name: "The Witcher 3: Wild Hunt", price: "$9.99", originalPrice: "$39.99", discount: "-75%" },
+    { id: "271590", name: "Grand Theft Auto V", price: "$14.99", originalPrice: "$29.99", discount: "-50%" },
+    { id: "1174180", name: "Red Dead Redemption 2", price: "$23.99", originalPrice: "$59.99", discount: "-60%" },
+    { id: "1245620", name: "ELDEN RING", price: "$47.99", originalPrice: "$59.99", discount: "-20%" },
+  ]
 
   useEffect(() => {
     // Get username from cookies
+    console.log("Getting username from cookies")
     const cookies = document.cookie.split(";")
     const usernameCookie = cookies.find((cookie) => cookie.trim().startsWith("username="))
     if (usernameCookie) {
-      setUsername(usernameCookie.split("=")[1])
+      const extractedUsername = usernameCookie.split("=")[1]
+      console.log("Logging in to: ", extractedUsername)
+      setUsername(extractedUsername)
+      fetchUserData(extractedUsername)
+    } else {
+      setError("No user logged in")
+      setLoading(false)
     }
   }, [])
 
-  // Mock data for owned games
-  const ownedGames: Game[] = [
-    { id: 440, name: "Team Fortress 2" },
-    { id: 730, name: "Counter-Strike 2" },
-    { id: 570, name: "Dota 2" },
-    { id: 220, name: "Half-Life 2" },
-    { id: 620, name: "Portal 2" },
-    { id: 550, name: "Left 4 Dead 2" },
-    { id: 4000, name: "Garry's Mod" },
-    { id: 105600, name: "Terraria" },
-  ]
+  const fetchUserData = async (username: string) => {
+    try {
+      setLoading(true)
 
-  // Mock data for recommended games
-  const recommendedGames: Game[] = [
-    { id: 413150, name: "Stardew Valley", price: "$14.99", originalPrice: "$14.99" },
-    { id: 1091500, name: "Cyberpunk 2077", price: "$29.99", originalPrice: "$59.99", discount: "-50%" },
-    { id: 292030, name: "The Witcher 3: Wild Hunt", price: "$9.99", originalPrice: "$39.99", discount: "-75%" },
-    { id: 271590, name: "Grand Theft Auto V", price: "$14.99", originalPrice: "$29.99", discount: "-50%" },
-    { id: 1174180, name: "Red Dead Redemption 2", price: "$23.99", originalPrice: "$59.99", discount: "-60%" },
-    { id: 1245620, name: "ELDEN RING", price: "$47.99", originalPrice: "$59.99", discount: "-20%" },
-  ]
+      // Fetch user data
+      const userResponse = await fetch(`/api/user/${username}`)
+      if (!userResponse.ok) {
+        throw new Error("User not found")
+      }
+
+      const userData: UserData = await userResponse.json()
+      setUserData(userData)
+      console.log("User Data: ", userData)
+
+      // Fetch game details
+      const gamesResponse = await fetch("/api/games", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ gameIds: userData.games }),
+      })
+
+      if (!gamesResponse.ok) {
+        throw new Error("Failed to fetch games")
+      }
+
+      const gamesData = await gamesResponse.json()
+      setOwnedGames(gamesData.games)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load user data")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleSignOut = () => {
     document.cookie = "username=; path=/; max-age=0"
     window.location.href = "/"
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
+          <p className="text-white">Loading your games...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-400 mb-4">Error: {error}</p>
+          <button
+            onClick={() => (window.location.href = "/")}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded"
+          >
+            Back to Home
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -101,34 +169,40 @@ export default function HomePage() {
         <section className="mb-12">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-white">Your Library</h2>
-            <span className="text-gray-400">{ownedGames.length} games</span>
+            <span className="text-gray-400">{userData?.num_games_owned || 0} games</span>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-            {ownedGames.map((game) => (
-              <div key={game.id} className="group cursor-pointer">
-                <div className="relative overflow-hidden rounded-lg bg-slate-800 border border-slate-700 hover:border-blue-400 transition-all duration-300 transform hover:scale-105">
-                  <img
-                    src={`https://steamcdn-a.akamaihd.net/steam/apps/${game.id}/header.jpg`}
-                    alt={game.name}
-                    className="w-full h-auto object-cover"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement
-                      target.src = "/placeholder.svg?height=215&width=460"
-                    }}
-                  />
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                    <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium">
-                      Play
-                    </button>
+          {ownedGames.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+              {ownedGames.map((game) => (
+                <div key={game.id} className="group cursor-pointer">
+                  <div className="relative overflow-hidden rounded-lg bg-slate-800 border border-slate-700 hover:border-blue-400 transition-all duration-300 transform hover:scale-105">
+                    <img
+                      src={`https://steamcdn-a.akamaihd.net/steam/apps/${game.id}/header.jpg`}
+                      alt={game.name}
+                      className="w-full h-auto object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement
+                        target.src = "/placeholder.svg?height=215&width=460"
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                      <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium">
+                        Play
+                      </button>
+                    </div>
                   </div>
+                  <h3 className="mt-2 text-sm font-medium text-white group-hover:text-blue-400 transition-colors">
+                    {game.name}
+                  </h3>
                 </div>
-                <h3 className="mt-2 text-sm font-medium text-white group-hover:text-blue-400 transition-colors">
-                  {game.name}
-                </h3>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-gray-400 text-lg">No games found in your library</p>
+            </div>
+          )}
         </section>
 
         {/* Recommended Games Section */}
@@ -193,7 +267,7 @@ export default function HomePage() {
               <div className="text-2xl">📚</div>
               <div>
                 <h3 className="text-lg font-semibold text-white">Games Owned</h3>
-                <p className="text-2xl font-bold text-blue-400">{ownedGames.length}</p>
+                <p className="text-2xl font-bold text-blue-400">{userData?.num_games_owned || 0}</p>
               </div>
             </div>
           </div>
