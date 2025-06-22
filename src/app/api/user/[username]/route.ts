@@ -5,7 +5,7 @@ export async function GET(
   request: NextRequest,
   context: { params: { username: string } }
 ) {
-  const { username } = context.params
+  const { username } = await context.params
 
   if (!username) {
     return NextResponse.json({ error: "Username is required" }, { status: 400 })
