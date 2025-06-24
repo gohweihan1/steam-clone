@@ -153,26 +153,16 @@ export default function PreferenceQuestionnaire({ isOpen, onClose, username }: Q
     }
 
     try {
-      // Send to your REST API
-      const response = await fetch("/api/preferences", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(preferences),
-      })
-
-      if (response.ok) {
-        console.log("Preferences saved successfully:", preferences)
-        onClose()
-        // Redirect to home page
-        window.location.href = "/home"
-      } else {
-        throw new Error("Failed to save preferences")
-      }
+      console.log("Preferences collected:", preferences)
+      onClose()
+      
+      // Encode preferences as URL parameter and redirect to home
+      const encodedPreferences = encodeURIComponent(JSON.stringify(preferences))
+      window.location.href = `/home_new?preferences=${encodedPreferences}`
+      
     } catch (error) {
-      console.error("Error saving preferences:", error)
-      alert("Failed to save preferences. Please try again.")
+      console.error("Error processing preferences:", error)
+      alert("Failed to process preferences. Please try again.")
     } finally {
       setIsSubmitting(false)
     }
