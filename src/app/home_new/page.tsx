@@ -37,48 +37,80 @@ export default function HomePage() {
   const [ownedGames, setOwnedGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string>("")
+  const [recommendedGames, setRecommendedGames] = useState<Game[]>([])
 
   // Mock data for recommended games (this could also come from an API)
-  const recommendedGames: Game[] = [
-    { id: "413150", name: "Stardew Valley", price: "$14.99", originalPrice: "$14.99" },
-    { id: "1091500", name: "Cyberpunk 2077", price: "$29.99", originalPrice: "$59.99", discount: "-50%" },
-    { id: "292030", name: "The Witcher 3: Wild Hunt", price: "$9.99", originalPrice: "$39.99", discount: "-75%" },
-    { id: "271590", name: "Grand Theft Auto V", price: "$14.99", originalPrice: "$29.99", discount: "-50%" },
-    { id: "1174180", name: "Red Dead Redemption 2", price: "$23.99", originalPrice: "$59.99", discount: "-60%" },
-    { id: "1245620", name: "ELDEN RING", price: "$47.99", originalPrice: "$59.99", discount: "-20%" },
-  ]
+  // const recommendedGames: Game[] = [
+  //   { id: "413150", name: "Stardew Valley", price: "$14.99", originalPrice: "$14.99" },
+  //   { id: "1091500", name: "Cyberpunk 2077", price: "$29.99", originalPrice: "$59.99", discount: "-50%" },
+  //   { id: "292030", name: "The Witcher 3: Wild Hunt", price: "$9.99", originalPrice: "$39.99", discount: "-75%" },
+  //   { id: "271590", name: "Grand Theft Auto V", price: "$14.99", originalPrice: "$29.99", discount: "-50%" },
+  //   { id: "1174180", name: "Red Dead Redemption 2", price: "$23.99", originalPrice: "$59.99", discount: "-60%" },
+  //   { id: "1245620", name: "ELDEN RING", price: "$47.99", originalPrice: "$59.99", discount: "-20%" },
+  // ]
 
   useEffect(() => {
-    // Get username from cookies
+  (async () => {
     console.log("Getting username from cookies")
-    const cookies = document.cookie.split(";")
-    const usernameCookie = cookies.find((cookie) => cookie.trim().startsWith("username="))
-    if (usernameCookie) {
-      const extractedUsername = usernameCookie.split("=")[1]
-      console.log("Logging in to: ", extractedUsername)
-      setUsername(extractedUsername)
-      setUserData({
-        username: extractedUsername,
-        num_games_owned: 0,
-        games: []
-        })
-      setOwnedGames([])
+  const cookies = document.cookie.split(";")
+  const usernameCookie = cookies.find((cookie) => cookie.trim().startsWith("username="))
 
-      const preferencesParam = searchParams.get('preferences')
-    
+  if (usernameCookie) {
+    const extractedUsername = usernameCookie.split("=")[1]
+    console.log("Logging in to: ", extractedUsername)
+    setUsername(extractedUsername)
+    setUserData({
+      username: extractedUsername,
+      num_games_owned: 0,
+      games: []
+    })
+    setOwnedGames([])
+
+    const preferencesParam = searchParams.get("preferences")
+
     if (preferencesParam) {
-        try {
-            const preferences: Preferences = JSON.parse(decodeURIComponent(preferencesParam))
-            console.log('Received preferences:', preferences)
-        } catch (error) {
-            console.error('Error parsing preferences:', error)
-        }
+      try {
+        const preferences: Preferences = JSON.parse(decodeURIComponent(preferencesParam))
+        console.log("Received preferences:", preferences)
+
+        // Step 1: Send preferences as GET to Flask backend
+        const response = await fetch("http://127.0.0.1:5000/recommendcoldstart", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(preferences),
+        })
+
+        if (!response.ok) throw new Error("Failed to get recommendations")
+
+        const game_ids: string[] = await response.json()
+
+        // Step 2: POST game_ids to /api/games
+        const gamesResponse = await fetch("/api/games", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ gameIds: game_ids }),
+        })
+
+        if (!gamesResponse.ok) throw new Error("Failed to fetch game details")
+
+        const gamesData = await gamesResponse.json()
+        setRecommendedGames(gamesData.games)
+
+      } catch (error) {
+        console.error("Error processing preferences:", error)
+        setError("Something went wrong")
+      }
     } else {
       setError("No user logged in")
-      setLoading(false)
     }
     setLoading(false)
-  }}, [searchParams])
+  }
+  })()
+}, [searchParams])
 
 
   const handleSignOut = () => {
