@@ -73,6 +73,11 @@ export default function HomePage() {
         const preferences: Preferences = JSON.parse(decodeURIComponent(preferencesParam))
         console.log("Received preferences:", preferences)
 
+        const request_json = {
+          image_preferences: preferences.image_preferences,
+          tag_preferences: preferences.tag_preferences
+        }
+
         // Step 1: Send preferences as GET to Flask backend
         const response = await fetch("http://127.0.0.1:5000/recommendcoldstart", {
           method: "POST",
@@ -85,6 +90,8 @@ export default function HomePage() {
         if (!response.ok) throw new Error("Failed to get recommendations")
 
         const game_ids: string[] = await response.json()
+
+        console.log(game_ids)
 
         // Step 2: POST game_ids to /api/games
         const gamesResponse = await fetch("/api/games", {
@@ -189,7 +196,7 @@ export default function HomePage() {
       <main className="max-w-7xl mx-auto px-6 py-8">
         {/* Welcome Section */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Welcome back, {username}!</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">Welcome, {username}!</h1>
           <p className="text-gray-400">Ready to discover your next favorite game?</p>
         </div>
 
