@@ -96,7 +96,7 @@ export default function HomePage() {
       const game_ids: string[] = await response.json()
 
       const recommendedgamesResponse = await fetch("/api/games", {
-          method: "GET",
+          method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
